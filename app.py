@@ -1,34 +1,18 @@
-from models import User
 
 from flask import Flask, request, abort
 from werkzeug.exceptions import HTTPException
 
+from services import (
+    get_user_by_id,
+    user_to_dict,
+    create_user,
+    get_users,
+    delete_user as delete_user_service,
+    update_user
+)
+
 app = Flask(__name__)
 
-def validate_text(value):
-    return isinstance(value, str) and value.strip()
-
-
-def validate_age(age):
-    return type(age) is int and age > 0
-
-def validate_user(name, surname, age):
-    return validate_text(name) and validate_text(surname) and validate_age(age)
-
-def get_user_by_id(id):
-    user = User.select().where(User.id == id).first()
-    if user:
-        return user
-    abort(404)
-
-
-def user_to_dict(user):
-    return {
-        'id': user.id,
-        'name': user.name,
-        'surname': user.surname,
-        'age': user.age
-    }
 
 @app.errorhandler(HTTPException)
 def error_handler(error):
@@ -60,8 +44,9 @@ def users_post():
         surname = query.get('surname')
         age = query.get('age')
 
-        if validate_user(name, surname, age):
-            user = User.create(name=name.strip(), surname=surname.strip(), age=age)
+        user = create_user(name, surname, age)
+
+        if user:
             return user_to_dict(user), 201
     abort(400)
 
@@ -70,13 +55,7 @@ def users_post():
 def users_list():
     search = request.args.get('search')
 
-    if search:
-        users_query = User.select().where(
-            User.name.contains(search) |
-            (User.surname.contains(search))
-        )
-    else:
-        users_query = User.select()
+    users_query = get_users(search)
 
     users = []
 
@@ -90,53 +69,45 @@ def users_list():
 @app.route('/users/<int:id>')
 def get_user_info(id):
     user = get_user_by_id(id)
-    return user_to_dict(user), 200
+    if user:
+        return user_to_dict(user), 200
+    abort(404)
 
 
 
 
 @app.route('/users/<int:id>', methods=['DELETE'])
 def delete_user(id):
-    user = get_user_by_id(id)
+    result = delete_user_service(id)
 
-    username = user.name
-    user_id = user.id
+    if not result:
+        abort(404)
 
-    User.delete().where(User.id == id).execute()
+    username, user_id = result
+
     return {
         "message": f'Пользователь {username} успешно удален',
         "id": user_id
     }, 200
 
 
+
 @app.route('/users/<int:id>', methods=['PUT'])
 def put_user(id):
-    user = get_user_by_id(id)
-    changed = False
-
     query = request.get_json(silent=True)
+
     if query:
-        name = query.get('name')
-        surname = query.get('surname')
-        age = query.get('age')
+        user = update_user(id, query)
 
-        if validate_text(name):
-            user.name = name.strip()
-            changed = True
+        if user is None:
+            abort(404)
 
-        if validate_text(surname):
-            user.surname = surname.strip()
-            changed = True
+        if not user:
+            abort(400)
 
-        if validate_age(age):
-            user.age = age
-            changed = True
+        return user_to_dict(user), 200
 
-        if changed:
-            user.save()
-            return user_to_dict(user), 200
     abort(400)
-
 
 
 

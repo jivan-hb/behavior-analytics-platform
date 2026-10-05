@@ -12,8 +12,8 @@ class User(BaseModel):
     surname = CharField()
     age = IntegerField()
 
-if __name__ == '__main__':
-    db.create_tables([User])
+
+db.create_tables([User])
 
 
 
