@@ -55,33 +55,45 @@ def delete_user(id):
 
     return None
 
+
+def validate_update(query):
+    if not query:
+        return False
+
+    allowed_fields = {'name', 'surname', 'age'}
+
+    if not all(key in allowed_fields for key in query):
+        return False
+
+    if 'name' in query and not validate_text(query['name']):
+        return False
+
+    if 'surname' in query and not validate_text(query['surname']):
+        return False
+
+    if 'age' in query and not validate_age(query['age']):
+        return False
+
+    return True
+
+
 def update_user(id, query):
+    if not validate_update(query):
+        return False
+
     user = get_user_by_id(id)
-    changed = False
 
     if not user:
         return None
 
-    name = query.get('name')
-    surname = query.get('surname')
-    age = query.get('age')
+    if 'name' in query:
+        user.name = query['name'].strip()
 
+    if 'surname' in query:
+        user.surname = query['surname'].strip()
 
-    if validate_text(name):
-        user.name = name.strip()
-        changed = True
+    if 'age' in query:
+        user.age = query['age']
 
-    if validate_text(surname):
-        user.surname = surname.strip()
-        changed = True
-
-    if validate_age(age):
-        user.age = age
-        changed = True
-
-
-    if changed:
-        user.save()
-        return user
-
-    return False
+    user.save()
+    return user
