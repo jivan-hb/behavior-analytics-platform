@@ -1,4 +1,8 @@
 from models import User
+from peewee import PeeweeException
+import logging
+
+logger = logging.getLogger(__name__)
 
 def validate_text(value):
     return isinstance(value, str) and bool(value.strip())
@@ -23,13 +27,18 @@ def user_to_dict(user):
 def create_user(name, surname, age):
 
     if validate_user(name, surname, age):
-        user = User.create(name=name.strip(),
-                           surname=surname.strip(),
-                           age=age
-                        )
-        return user
+        try:
+            user = User.create(name=name.strip(),
+                               surname=surname.strip(),
+                               age=age
+                            )
+            return user
+        except PeeweeException:
+            logger.exception("Error creating user")
+            return None
 
     return False
+
 
 def get_users(search):
 
@@ -81,19 +90,23 @@ def update_user(id, query):
     if not validate_update(query):
         return False
 
-    user = get_user_by_id(id)
+    try:
+        user = get_user_by_id(id)
 
-    if not user:
-        return None
+        if not user:
+            return None
 
-    if 'name' in query:
-        user.name = query['name'].strip()
+        if 'name' in query:
+            user.name = query['name'].strip()
 
-    if 'surname' in query:
-        user.surname = query['surname'].strip()
+        if 'surname' in query:
+            user.surname = query['surname'].strip()
 
-    if 'age' in query:
-        user.age = query['age']
+        if 'age' in query:
+            user.age = query['age']
 
-    user.save()
-    return user
+        user.save()
+        return user
+    except PeeweeException:
+        logger.exception("Error updating user")
+        raise

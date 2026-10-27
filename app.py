@@ -1,5 +1,6 @@
 
 from flask import Flask, request, abort
+from peewee import PeeweeException
 from werkzeug.exceptions import HTTPException
 
 from services import (
@@ -48,7 +49,13 @@ def users_post():
 
         if user:
             return user_to_dict(user), 201
+
+        if user is None:
+            abort(500)
+
     abort(400)
+
+
 
 
 @app.route('/users')
@@ -96,18 +103,21 @@ def delete_user(id):
 def put_user(id):
     query = request.get_json(silent=True)
 
-    if query:
+    if not query:
+        abort(400)
+
+    try:
         user = update_user(id, query)
+    except PeeweeException:
+        abort(500)
 
-        if user is None:
-            abort(404)
+    if user is None:
+        abort(404)
 
-        if not user:
-            abort(400)
+    if user is False:
+        abort(400)
 
-        return user_to_dict(user), 200
-
-    abort(400)
+    return user_to_dict(user), 200
 
 
 
